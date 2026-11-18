@@ -1,0 +1,4 @@
+repository "Hide & Seek Royale - VR/Raya Game@9072440128676@cloud"
+  path "/"
+    br "/main"
+    co "/main"
