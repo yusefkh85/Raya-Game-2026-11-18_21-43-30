@@ -10,7 +10,7 @@ public class GameStartIntro : MonoBehaviour
 
     [Header("کنترل کاراکتر و منو")]
     public GameObject menuUI;
-    public FirstPersonFloppyHands playerController;
+    public FloppyPlayer FloppyPlayer;
 
     [Header("تنظیمات پرواز نرم دوربین")]
     public bool smoothTransition = true;
@@ -20,9 +20,9 @@ public class GameStartIntro : MonoBehaviour
 
     void Awake()
     {
-        if (playerController != null)
+        if (FloppyPlayer != null)
         {
-            playerRb = playerController.GetComponent<Rigidbody>();
+            playerRb = FloppyPlayer.GetComponent<Rigidbody>();
         }
     }
 
@@ -32,8 +32,8 @@ public class GameStartIntro : MonoBehaviour
         if (playerCamera != null) playerCamera.gameObject.SetActive(false);
 
         // در صفحه Start کاراکتر سر جایش داخل آمبولانس ثابت می‌ماند و کنترل موس غیرفعال است
-        if (playerController != null)
-            playerController.enabled = false;
+        if (FloppyPlayer != null)
+            FloppyPlayer.enabled = false;
 
         if (playerRb != null)
         {
@@ -109,8 +109,8 @@ public class GameStartIntro : MonoBehaviour
             playerRb.linearVelocity = Vector3.zero;
         }
 
-        if (playerController != null)
-            playerController.enabled = true;
+        if (FloppyPlayer != null)
+            FloppyPlayer.enabled = true;
 
         // قفل کردن موس فقط پس از ورود کامل به دوربین بازیکن
         Cursor.lockState = CursorLockMode.Locked;

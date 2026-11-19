@@ -245,7 +245,7 @@ GameObject:
   - component: {fileID: 6801545764872174667}
   - component: {fileID: 4843581807862389941}
   - component: {fileID: 3099089415201876648}
-  - component: {fileID: 3878224277094777173}
+  - component: {fileID: 8483171016952145504}
   m_Layer: 6
   m_Name: Character
   m_TagString: Player
@@ -341,7 +341,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -376,7 +376,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &3878224277094777173
+--- !u!114 &8483171016952145504
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -385,19 +385,56 @@ MonoBehaviour:
   m_GameObject: {fileID: 6904954611536303767}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3311a1c5dc120994aa0056c01dfeca19, type: 3}
+  m_Script: {fileID: 11500000, guid: 8d225a95e876fdc45a24fe81f3034207, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FirstPersonFloppyHands
+  m_EditorClassIdentifier: Assembly-CSharp::FloppyPlayer
   playerCamera: {fileID: 4757005858244439011}
   mouseSensitivity: 2.5
-  moveSpeed: 5
-  airControlMultiplier: 0.65
-  jumpForce: 20
-  extraGravity: 5
-  reachForce: 180
-  idleHangForce: 35
-  wiggleSpeed: 14
-  grabRange: 2.2
-  throwForce: 7
-  grabbableTags:
-  - Item
+  maxPitch: 80
+  lockCursorOnClick: 1
+  hideBodyMesh: 1
+  moveSpeed: 5.5
+  groundAcceleration: 60
+  airAcceleration: 25
+  bodyMass: 5
+  maxSlopeAngle: 50
+  groundCheckDistance: 0.1
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4083
+  jumpHeight: 1.3
+  fallGravityMultiplier: 1.8
+  lowJumpMultiplier: 2.2
+  coyoteTime: 0.12
+  jumpBufferTime: 0.12
+  maxFallSpeed: 40
+  handStiffness: 140
+  handDamping: 9
+  reachDistance: 1
+  idleSway: 0.03
+  walkSwing: 0.12
+  walkSwingSpeed: 10
+  lookInertia: 0.12
+  moveInertia: 0.3
+  shoulderOffset: {x: 0.28, y: -0.38, z: 0}
+  idleHandOffset: {x: 0.3, y: -0.25, z: 0.6}
+  holdOffset: {x: 0.22, y: -0.12, z: 1.1}
+  upperArmLength: 0.38
+  foreArmLength: 0.38
+  armThickness: 0.1
+  gloveSize: 0.17
+  armColor: {r: 0.95, g: 0.8, b: 0.65, a: 1}
+  gloveColor: {r: 0.2, g: 0.65, b: 0.95, a: 1}
+  handMaterial: {fileID: 0}
+  grabRange: 2.6
+  aimRadius: 0.1
+  aimMask:
+    serializedVersion: 2
+    m_Bits: 4083
+  holdFollowSpeed: 18
+  holdMaxSpeed: 20
+  holdRotateSpeed: 12
+  holdBreakDistance: 2.2
+  throwSpeed: 9
+  useRange: 2.6
+  grabbableTags: Item

@@ -2,22 +2,35 @@ using UnityEngine;
 
 public class MedicalTool : MonoBehaviour
 {
-    public string itemName; // مثلا بنویس: "آتش‌نشانی" یا "قرص" یا "دستگاه شوک"
+    public string itemName;              // مثلا: "Pill" یا "Defibrillator" (باید با correctItems تو PatientNeedsManager یکی باشه)
+    public float useCooldown = 0.5f;     // جلوگیری از اسپم کردن دکمه
+
     private PatientNeedsManager patientNeeds;
+    private float nextUseTime;
 
     void Start()
     {
-        // پیدا کردن بیمار توی صحنه
-        patientNeeds = FindObjectOfType<PatientNeedsManager>();
+        patientNeeds = FindFirstObjectByType<PatientNeedsManager>();
     }
 
-    // وقتی با موس روی دستگاه کلیک میشه
-    void OnMouseDown()
+    // توسط FloppyPlayer با دکمه E صدا زده میشه (وسیله‌ی تو دست یا وسیله‌ای که بهش نگاه می‌کنی).
+    // قبلا OnMouseDown بود؛ با موس قفل‌شده‌ی اول‌شخص درست کار نمی‌کرد، برد نداشت
+    // و همزمان با کلیکِ برداشتن اجرا می‌شد.
+    public bool Use()
     {
-        if (patientNeeds != null)
+        if (Time.time < nextUseTime) return false;
+
+        if (patientNeeds == null)
+            patientNeeds = FindFirstObjectByType<PatientNeedsManager>();
+        if (patientNeeds == null)
         {
-            patientNeeds.UseItem(itemName);
-            // اینجا میتونی صدای کلیک یا انیمیشن استفاده از دستگاه رو هم اجرا کنی
+            Debug.LogWarning("MedicalTool: PatientNeedsManager تو صحنه پیدا نشد.", this);
+            return false;
         }
+
+        nextUseTime = Time.time + useCooldown;
+        patientNeeds.UseItem(itemName);
+        // اینجا میتونی صدا یا انیمیشن استفاده از دستگاه رو هم اجرا کنی
+        return true;
     }
 }

@@ -11,36 +11,43 @@ public class PatientStateManager : MonoBehaviour
     public GameObject sickModel;
     public GameObject deadModel;
 
-    public PatientState CurrentState { get; private set; }
+    public PatientState CurrentState { get; private set; } = PatientState.Happy;
 
     void Awake()
     {
-        // غیرفعال کردن همه در شروع بازی
+        // همه خاموش، بعد مدل حالت شروع (Happy) روشن میشه.
+        // (قبلا همه خاموش می‌موندن و چون SetState(Happy) بخاطر یکی بودن حالت return می‌کرد،
+        //  بیمار تا اولین نیاز اصلا دیده نمیشد.)
+        HideAll();
+        ShowModel(CurrentState);
+    }
+
+    public void SetState(PatientState newState)
+    {
+        if (CurrentState == newState) return;
+        if (CurrentState == PatientState.Dead) return;   // مرده دیگه برنمی‌گرده
+
+        HideAll();
+        ShowModel(newState);
+        CurrentState = newState;
+    }
+
+    void HideAll()
+    {
         if (happyModel) happyModel.SetActive(false);
         if (angryModel) angryModel.SetActive(false);
         if (sickModel) sickModel.SetActive(false);
         if (deadModel) deadModel.SetActive(false);
     }
 
-    public void SetState(PatientState newState)
+    void ShowModel(PatientState state)
     {
-        if (CurrentState == newState) return;
-
-        // خاموش کردن همه
-        if (happyModel) happyModel.SetActive(false);
-        if (angryModel) angryModel.SetActive(false);
-        if (sickModel) sickModel.SetActive(false);
-        if (deadModel) deadModel.SetActive(false);
-
-        // روشن کردن حالت جدید
-        switch (newState)
+        switch (state)
         {
             case PatientState.Happy: if (happyModel) happyModel.SetActive(true); break;
             case PatientState.Angry: if (angryModel) angryModel.SetActive(true); break;
             case PatientState.Sick: if (sickModel) sickModel.SetActive(true); break;
             case PatientState.Dead: if (deadModel) deadModel.SetActive(true); break;
         }
-
-        CurrentState = newState;
     }
 }
