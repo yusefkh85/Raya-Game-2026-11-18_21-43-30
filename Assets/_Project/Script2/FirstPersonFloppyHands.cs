@@ -14,7 +14,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
 
     [Header("حرکت و پرش (Human Fall Flat Style)")]
     public float moveSpeed = 5.5f;
-    public float slideSmoothing = 10f;
+    public float airControlMultiplier = 0.65f; // کنترل حرکت در هوا (نسبت به روی زمین)
     public float jumpForce = 5.8f;        // قدرت پرش
     public float extraGravity = 12f;      // جاذبه اضافه برای فرود سنگین و بامزه
 
@@ -26,6 +26,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
     [Header("گرفتن و پرتاب وسایل")]
     public float grabRange = 2.6f;
     public float throwForce = 9f;
+    public string[] grabbableTags = { "Item", "MedicalItem" };
 
     private Rigidbody rb;
     private CapsuleCollider col;
@@ -37,6 +38,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
     private bool canGrabSomething = false;
     private bool isGrounded = true;
     private bool wasGrounded = true;
+    private const int IgnoreRaycastLayer = 2; // لایه‌ی پیش‌فرض یونیتی "Ignore Raycast"
 
     void Start()
     {
@@ -80,6 +82,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
         upper.name = side + "_UpperArm";
         upper.transform.position = shoulderAnchor.position + Vector3.down * 0.2f;
         upper.transform.localScale = new Vector3(0.13f, 0.22f, 0.13f);
+        upper.layer = IgnoreRaycastLayer; // تا روی تشخیص زمین و پرتوی گرفتن اجسام تاثیر نذاره
         Physics.IgnoreCollision(col, upper.GetComponent<Collider>(), true);
 
         upperRb = upper.AddComponent<Rigidbody>();
@@ -100,6 +103,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
         forearm.name = side + "_Forearm";
         forearm.transform.position = upper.transform.position + Vector3.down * 0.35f;
         forearm.transform.localScale = new Vector3(0.12f, 0.24f, 0.12f);
+        forearm.layer = IgnoreRaycastLayer;
         Physics.IgnoreCollision(col, forearm.GetComponent<Collider>(), true);
         Physics.IgnoreCollision(upper.GetComponent<Collider>(), forearm.GetComponent<Collider>(), true);
 
@@ -156,7 +160,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
 
         // ۴. بررسی قابلیت برداشتن وسیله
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
-        canGrabSomething = Physics.Raycast(ray, out RaycastHit hit, grabRange) && hit.collider.CompareTag("MedicalItem");
+        canGrabSomething = Physics.Raycast(ray, out RaycastHit hit, grabRange) && IsGrabbable(hit.collider);
 
         // کنترل دست چپ (کلیک چپ)
         if (Input.GetMouseButtonDown(0) && leftHeldItem == null)
@@ -178,7 +182,9 @@ public class FirstPersonFloppyHands : MonoBehaviour
         isGrounded = Physics.SphereCast(transform.position, col.radius * 0.85f, Vector3.down, out _, rayLength);
 
         // لحظه فرود اومدن روی زمین (Landing Impact)
-        if (isGrounded && !wasGrounded)
+        // فقط وقتی واقعاً سقوط بوده (سرعت رو به پایین محسوس داشته) فعال میشه
+        // تا نوسان لحظه‌ای isGrounded (مثلاً روی ناهمواری‌های کوچیک زمین) باعث پرش دوربین نشه
+        if (isGrounded && !wasGrounded && rb.linearVelocity.y < -2f)
         {
             camLandOffset = -0.18f; // سر کمی میره پایین (حس وزن کاراکتر)
             leftForearm.AddForce(Vector3.down * 4f, ForceMode.Impulse);
@@ -202,11 +208,11 @@ public class FirstPersonFloppyHands : MonoBehaviour
 
     void FixedUpdate()
     {
-        // حرکت روی زمین (در هوا کمی کنترل کمتر و لغزنده‌تر است)
-        float controlMultiplier = isGrounded ? 1f : 0.65f;
-        Vector3 targetVel = moveInput * moveSpeed;
+        // حرکت روی زمین (در هوا کمی کنترل کمتر، ولی بدون لغزش - سرعت مستقیم ست می‌شود)
+        float controlMultiplier = isGrounded ? 1f : airControlMultiplier;
+        Vector3 targetVel = moveInput * moveSpeed * controlMultiplier;
         targetVel.y = rb.linearVelocity.y;
-        rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, targetVel, slideSmoothing * controlMultiplier * Time.fixedDeltaTime);
+        rb.linearVelocity = targetVel;
 
         // جاذبه اضافه در هوا برای اینکه پرش حالت معلقِ فضایی نداشته باشه
         if (!isGrounded)
@@ -255,7 +261,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, grabRange))
         {
-            if (hit.rigidbody != null && hit.collider.CompareTag("MedicalItem"))
+            if (hit.rigidbody != null && IsGrabbable(hit.collider))
             {
                 heldSlot = hit.rigidbody;
                 heldSlot.isKinematic = true;
@@ -264,6 +270,17 @@ public class FirstPersonFloppyHands : MonoBehaviour
                 heldSlot.transform.localRotation = Quaternion.identity;
             }
         }
+    }
+
+    // یک شیء قابل برداشتن است اگر تگش داخل لیست grabbableTags باشد
+    bool IsGrabbable(Collider target)
+    {
+        foreach (string tag in grabbableTags)
+        {
+            if (target.CompareTag(tag))
+                return true;
+        }
+        return false;
     }
 
     void Release(ref Rigidbody heldSlot, bool throwHard)
