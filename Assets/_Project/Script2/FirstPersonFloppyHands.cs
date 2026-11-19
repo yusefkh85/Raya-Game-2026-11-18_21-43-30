@@ -44,15 +44,13 @@ public class FirstPersonFloppyHands : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         col = GetComponent<CapsuleCollider>();
-        rb.mass = 5f;
+        rb.mass = 15f;
         rb.freezeRotation = true;
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
         var mesh = GetComponent<MeshRenderer>();
         if (mesh != null) mesh.enabled = false;
-
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
 
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>().transform;
@@ -177,16 +175,12 @@ public class FirstPersonFloppyHands : MonoBehaviour
 
     void CheckGrounded()
     {
-        // تشخیص برخورد کف کپسول با زمین
         float rayLength = (col.height * 0.5f) + 0.15f;
         isGrounded = Physics.SphereCast(transform.position, col.radius * 0.85f, Vector3.down, out _, rayLength);
 
-        // لحظه فرود اومدن روی زمین (Landing Impact)
-        // فقط وقتی واقعاً سقوط بوده (سرعت رو به پایین محسوس داشته) فعال میشه
-        // تا نوسان لحظه‌ای isGrounded (مثلاً روی ناهمواری‌های کوچیک زمین) باعث پرش دوربین نشه
         if (isGrounded && !wasGrounded && rb.linearVelocity.y < -2f)
         {
-            camLandOffset = -0.18f; // سر کمی میره پایین (حس وزن کاراکتر)
+            camLandOffset = -0.18f;
             leftForearm.AddForce(Vector3.down * 4f, ForceMode.Impulse);
             rightForearm.AddForce(Vector3.down * 4f, ForceMode.Impulse);
         }
@@ -195,26 +189,22 @@ public class FirstPersonFloppyHands : MonoBehaviour
 
     void Jump()
     {
-        // صفر کردن سرعت عمودی قبلی و اعمال نیروی پرش
         Vector3 vel = rb.linearVelocity;
         vel.y = 0f;
         rb.linearVelocity = vel;
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
 
-        // پرتاب بامزه‌ی دست‌ها به بالا هنگام پرش (حس Human Fall Flat)
         leftForearm.AddForce((Vector3.up * 3.2f + playerCamera.right * -0.8f), ForceMode.Impulse);
         rightForearm.AddForce((Vector3.up * 3.2f + playerCamera.right * 0.8f), ForceMode.Impulse);
     }
 
     void FixedUpdate()
     {
-        // حرکت روی زمین (در هوا کمی کنترل کمتر، ولی بدون لغزش - سرعت مستقیم ست می‌شود)
         float controlMultiplier = isGrounded ? 1f : airControlMultiplier;
         Vector3 targetVel = moveInput * moveSpeed * controlMultiplier;
         targetVel.y = rb.linearVelocity.y;
         rb.linearVelocity = targetVel;
 
-        // جاذبه اضافه در هوا برای اینکه پرش حالت معلقِ فضایی نداشته باشه
         if (!isGrounded)
         {
             rb.AddForce(Vector3.down * extraGravity, ForceMode.Acceleration);
@@ -272,7 +262,6 @@ public class FirstPersonFloppyHands : MonoBehaviour
         }
     }
 
-    // یک شیء قابل برداشتن است اگر تگش داخل لیست grabbableTags باشد
     bool IsGrabbable(Collider target)
     {
         foreach (string tag in grabbableTags)
