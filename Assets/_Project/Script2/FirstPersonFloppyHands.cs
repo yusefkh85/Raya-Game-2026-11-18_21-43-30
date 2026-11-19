@@ -6,11 +6,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
     [Header("تنظیمات دوربین و حس حرکت")]
     public Transform playerCamera;
     public float mouseSensitivity = 2.5f;
-    public float cameraTiltAmount = 1.5f;
     private float xRotation = 0f;
-    private float currentTilt = 0f;
-    private float defaultCamY;
-    private float camLandOffset = 0f;
 
     [Header("حرکت و پرش (Human Fall Flat Style)")]
     public float moveSpeed = 5.5f;
@@ -57,15 +53,13 @@ public class FirstPersonFloppyHands : MonoBehaviour
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>().transform;
 
-        defaultCamY = playerCamera.localPosition.y;
-
         leftShoulder = CreateAnchor("LeftShoulder", new Vector3(-0.38f, -0.25f, 0.2f));
         rightShoulder = CreateAnchor("RightShoulder", new Vector3(0.38f, -0.25f, 0.2f));
         leftGrabPoint = CreateAnchor("LeftGrabPoint", new Vector3(-0.22f, -0.15f, 1.15f));
         rightGrabPoint = CreateAnchor("RightGrabPoint", new Vector3(0.22f, -0.15f, 1.15f));
 
-        BuildTwoPartArm("Left", leftShoulder, out leftUpper, out leftForearm);
-        BuildTwoPartArm("Right", rightShoulder, out rightUpper, out rightForearm);
+        //BuildTwoPartArm("Left", leftShoulder, out leftUpper, out leftForearm);
+        //BuildTwoPartArm("Right", rightShoulder, out rightUpper, out rightForearm);
     }
 
     Transform CreateAnchor(string objName, Vector3 localPos)
@@ -83,7 +77,7 @@ public class FirstPersonFloppyHands : MonoBehaviour
         upper.transform.position = shoulderAnchor.position + Vector3.down * 0.2f;
         upper.transform.localScale = new Vector3(0.13f, 0.22f, 0.13f);
         upper.layer = IgnoreRaycastLayer; // تا روی تشخیص زمین و پرتوی گرفتن اجسام تاثیر نذاره
-        Physics.IgnoreCollision(col, upper.GetComponent<Collider>(), true);
+        Destroy(upper.GetComponent<Collider>()); // بدون کالایدر فیزیکی: فقط بصریه و با فنر/نیرو حرکت می‌کنه
 
         upperRb = upper.AddComponent<Rigidbody>();
         upperRb.mass = 0.2f;
@@ -131,26 +125,18 @@ public class FirstPersonFloppyHands : MonoBehaviour
         // ۱. بررسی تماس با زمین (برای پرش)
         CheckGrounded();
 
-        // ۲. چرخش دوربین با موس
+        // ۲. چرخش دوربین و کاراکتر با موس (نگاه بالا/پایین روی دوربین، چپ/راست روی کل بدن)
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
+
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -75f, 75f);
+        playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        transform.Rotate(Vector3.up * mouseX);
 
         rawH = Input.GetAxisRaw("Horizontal");
         rawV = Input.GetAxisRaw("Vertical");
         moveInput = (transform.right * rawH + transform.forward * rawV).normalized;
-
-        // کج شدن نرم دوربین هنگام حرکت + نشست دوربین هنگام فرود از پرش
-        float targetTilt = -rawH * cameraTiltAmount;
-        currentTilt = Mathf.Lerp(currentTilt, targetTilt, 8f * Time.deltaTime);
-        playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, currentTilt);
-        transform.Rotate(Vector3.up * mouseX);
-
-        camLandOffset = Mathf.Lerp(camLandOffset, 0f, 10f * Time.deltaTime);
-        Vector3 camPos = playerCamera.localPosition;
-        camPos.y = defaultCamY + camLandOffset;
-        playerCamera.localPosition = camPos;
 
         // ۳. پرش فان با دکمه Space
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
@@ -181,12 +167,10 @@ public class FirstPersonFloppyHands : MonoBehaviour
         float rayLength = (col.height * 0.5f) + 0.15f;
         isGrounded = Physics.SphereCast(transform.position, col.radius * 0.85f, Vector3.down, out _, rayLength);
 
-        // لحظه فرود اومدن روی زمین (Landing Impact)
+        // لحظه فرود اومدن روی زمین: فقط یه تکون کوچیک به دست‌ها میده (حس وزن کاراکتر)
         // فقط وقتی واقعاً سقوط بوده (سرعت رو به پایین محسوس داشته) فعال میشه
-        // تا نوسان لحظه‌ای isGrounded (مثلاً روی ناهمواری‌های کوچیک زمین) باعث پرش دوربین نشه
         if (isGrounded && !wasGrounded && rb.linearVelocity.y < -2f)
         {
-            camLandOffset = -0.18f; // سر کمی میره پایین (حس وزن کاراکتر)
             leftForearm.AddForce(Vector3.down * 4f, ForceMode.Impulse);
             rightForearm.AddForce(Vector3.down * 4f, ForceMode.Impulse);
         }
@@ -195,33 +179,14 @@ public class FirstPersonFloppyHands : MonoBehaviour
 
     void Jump()
     {
-        // صفر کردن سرعت عمودی قبلی و اعمال نیروی پرش
-        Vector3 vel = rb.linearVelocity;
-        vel.y = 0f;
-        rb.linearVelocity = vel;
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-
-        // پرتاب بامزه‌ی دست‌ها به بالا هنگام پرش (حس Human Fall Flat)
+        rb.linearVelocity = new Vector3(rb.linearVelocity.x, jumpForce, rb.linearVelocity.z);
         leftForearm.AddForce((Vector3.up * 3.2f + playerCamera.right * -0.8f), ForceMode.Impulse);
         rightForearm.AddForce((Vector3.up * 3.2f + playerCamera.right * 0.8f), ForceMode.Impulse);
     }
 
     void FixedUpdate()
     {
-        // حرکت روی زمین (در هوا کمی کنترل کمتر، ولی بدون لغزش - سرعت مستقیم ست می‌شود)
-        float controlMultiplier = isGrounded ? 1f : airControlMultiplier;
-        Vector3 targetVel = moveInput * moveSpeed * controlMultiplier;
-        targetVel.y = rb.linearVelocity.y;
-        rb.linearVelocity = targetVel;
-
-        // جاذبه اضافه در هوا برای اینکه پرش حالت معلقِ فضایی نداشته باشه
-        if (!isGrounded)
-        {
-            rb.AddForce(Vector3.down * extraGravity, ForceMode.Acceleration);
-        }
-
-        leftUpper.AddForce((leftShoulder.position - leftUpper.position) * 140f);
-        rightUpper.AddForce((rightShoulder.position - rightUpper.position) * 140f);
+        MoveCharacter();
 
         // منطق دست چپ
         if (Input.GetMouseButton(0) || leftHeldItem != null)
@@ -253,6 +218,28 @@ public class FirstPersonFloppyHands : MonoBehaviour
                 float swing = Mathf.Sin(Time.time * wiggleSpeed) * 7f;
                 rightForearm.AddForce(-playerCamera.forward * swing + playerCamera.up * Mathf.Abs(swing) * 0.4f);
             }
+        }
+    }
+
+    // حرکت ساده و بدون لغزش: روی زمین سرعت مستقیم ست میشه (مثل قدیم لیز نمیخوره)
+    // تو هوا فقط بخشی از کنترل رو داریم و یه جاذبه‌ی اضافه برای فرود سنگین‌تر اعمال میشه
+    void MoveCharacter()
+    {
+        Vector3 targetVelocity = moveInput * moveSpeed;
+        Vector3 currentVelocity = rb.linearVelocity;
+
+        if (isGrounded)
+        {
+            rb.linearVelocity = new Vector3(targetVelocity.x, currentVelocity.y, targetVelocity.z);
+        }
+        else
+        {
+            Vector3 blended = Vector3.Lerp(
+                new Vector3(currentVelocity.x, 0f, currentVelocity.z),
+                new Vector3(targetVelocity.x, 0f, targetVelocity.z),
+                airControlMultiplier);
+            rb.linearVelocity = new Vector3(blended.x, currentVelocity.y, blended.z);
+            rb.AddForce(Vector3.down * extraGravity, ForceMode.Acceleration);
         }
     }
 
