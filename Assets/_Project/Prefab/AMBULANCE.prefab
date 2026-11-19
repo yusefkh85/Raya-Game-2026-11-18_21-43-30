@@ -758,9 +758,9 @@ GameObject:
   - component: {fileID: 4296438593556701877}
   - component: {fileID: 9176164366052812295}
   - component: {fileID: 2600381136536144544}
-  m_Layer: 0
+  m_Layer: 11
   m_Name: Plane
-  m_TagString: Untagged
+  m_TagString: Item
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1352,8 +1352,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 15.380415, y: 9.856848, z: 0.123921186}
-  m_Center: {x: 4.520881, y: 0.04781558, z: -0.36533284}
+  m_Size: {x: 24.328447, y: 9.856848, z: 0.123921156}
+  m_Center: {x: 0.0468301, y: 0.04781558, z: -0.36533305}
 --- !u!1 &8094275277931683738
 GameObject:
   m_ObjectHideFlags: 0
