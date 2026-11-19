@@ -231,6 +231,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: AMBULANCE 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8632055958874330854, guid: 3560f5a9c82a92b4b8d3a2d736bac920, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8632055958874330854, guid: 3560f5a9c82a92b4b8d3a2d736bac920, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -5.46
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
