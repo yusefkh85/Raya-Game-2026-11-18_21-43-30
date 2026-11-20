@@ -127,6 +127,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
   itemName: 
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &3555961833175587983
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,7 +322,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bcbf9008875c6d4db454c58829d82bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
-  itemName: 
+  itemName: Adhesive bandage
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &5070690846556375583
 GameObject:
   m_ObjectHideFlags: 0
@@ -474,7 +480,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bcbf9008875c6d4db454c58829d82bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
-  itemName: 
+  itemName: Fire extinguisher
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &5275132049608372686
 GameObject:
   m_ObjectHideFlags: 0
@@ -598,7 +607,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5275132049608372686}
   serializedVersion: 5
-  m_Mass: 1
+  m_Mass: 10
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -629,7 +638,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bcbf9008875c6d4db454c58829d82bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
-  itemName: 
+  itemName: First Aid Kit
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &5943720113010196328
 GameObject:
   m_ObjectHideFlags: 0
@@ -757,6 +769,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
   itemName: 
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &7925262006564774951
 GameObject:
   m_ObjectHideFlags: 0
@@ -911,7 +926,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bcbf9008875c6d4db454c58829d82bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
-  itemName: 
+  itemName: Ampoule
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &8081264691450524292
 GameObject:
   m_ObjectHideFlags: 0
@@ -1037,7 +1055,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8081264691450524292}
   serializedVersion: 5
-  m_Mass: 1
+  m_Mass: 10
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -1068,7 +1086,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bcbf9008875c6d4db454c58829d82bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
-  itemName: 
+  itemName: Shok
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &8642660391588882684
 GameObject:
   m_ObjectHideFlags: 0
@@ -1223,7 +1244,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2bcbf9008875c6d4db454c58829d82bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
-  itemName: 
+  itemName: Capsule
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0
 --- !u!1 &8932956296586266930
 GameObject:
   m_ObjectHideFlags: 0
@@ -1379,3 +1403,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MedicalTool
   itemName: 
+  useCooldown: 0.5
+  canBePickedUp: 1
+  consumeOnUse: 0

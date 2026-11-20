@@ -4,6 +4,8 @@ public class MedicalTool : MonoBehaviour
 {
     public string itemName;              // مثلا: "Pill" یا "Defibrillator" (باید با correctItems تو PatientNeedsManager یکی باشه)
     public float useCooldown = 0.5f;     // جلوگیری از اسپم کردن دکمه
+    public bool canBePickedUp = true;    // false = دستگاه ثابت (با E روش کار میکنه ولی برداشته نمیشه)
+    public bool consumeOnUse = false;    // true = بعد از دادن به بیمار از بین میره (مثلا قرص)
 
     private PatientNeedsManager patientNeeds;
     private float nextUseTime;

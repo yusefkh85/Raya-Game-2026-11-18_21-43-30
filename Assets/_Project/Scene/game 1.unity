@@ -1521,6 +1521,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: 'Abzar '
       objectReference: {fileID: 0}
+    - target: {fileID: 3906396016627957078, guid: ace66dabc0c1f454ca109bbb218be1a2, type: 3}
+      propertyPath: itemName
+      value: Huamer
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

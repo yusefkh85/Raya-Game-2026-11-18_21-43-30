@@ -76,7 +76,19 @@ public class FloppyPlayer : MonoBehaviour
     public float holdBreakDistance = 2.2f;// اگه وسیله گیر کنه و از دست دور بشه خودکار ول میشه
     public float throwSpeed = 9f;
     public float useRange = 2.6f;
-    public string grabbableTags = "Item";
+    public string grabbableTags = "Item,MedicalItem";   // با کاما جدا کن. هر چیزی که MedicalTool داشته باشه بدون تگ هم قابل برداشتنه
+
+    [Header("رنگ وسیله‌ی تو دست")]
+    public Color heldTint = new Color(1f, 0.85f, 0.25f);
+    [Range(0f, 1f)] public float heldTintAmount = 0.35f;
+
+    [Header("دادن وسیله به بیمار")]
+    public float giveRange = 3.5f;       // حداکثر فاصله‌ی دوربین تا بیمار
+    public float giveAngle = 40f;        // باید تقریبا به بیمار نگاه کنی
+    public Vector3 patientAimOffset = new Vector3(0f, 1f, 0f);   // نقطه‌ی هدف روی بیمار (نسبت به pivot اون)
+
+    [Header("اشکال‌یابی")]
+    public bool debugAim = true;         // بالای صفحه می‌نویسه به چی نگاه می‌کنی و چرا برداشته نمیشه
 
     // ───────────────────────── وضعیت داخلی ─────────────────────────
     class Hand
@@ -98,6 +110,7 @@ public class FloppyPlayer : MonoBehaviour
         public RigidbodyInterpolation interpolation;
         public CollisionDetectionMode detection;
         public Collider[] colliders;
+        public Renderer[] renderers;
     }
 
     Rigidbody rb;
@@ -118,12 +131,17 @@ public class FloppyPlayer : MonoBehaviour
 
     RaycastHit lookHit;
     bool lookHasHit;
-    Rigidbody lookGrabbable;
+    Transform lookGrabRoot;
 
     readonly RaycastHit[] hitBuffer = new RaycastHit[16];
     readonly Dictionary<Rigidbody, HeldInfo> heldInfos = new Dictionary<Rigidbody, HeldInfo>();
     readonly Dictionary<Rigidbody, Collider[]> pendingRestore = new Dictionary<Rigidbody, Collider[]>();
     readonly List<Rigidbody> tmpBodies = new List<Rigidbody>();
+
+    PatientNeedsManager patient;
+    float nextPatientSearch;
+    string[] tagList;
+    string aimDebugText = "";
 
     public bool IsGrounded { get { return isGrounded; } }
 
@@ -172,12 +190,41 @@ public class FloppyPlayer : MonoBehaviour
         }
 
         yaw = transform.eulerAngles.y;
+        tagList = ParseTags(grabbableTags);
         BuildHands();
+    }
+
+    void OnEnable()
+    {
+        // وقتی بعد از منو/اینترو فعال میشیم، نگاه از همون جهتی شروع بشه که دوربین الان هست (پرش ناگهانی نداشته باشیم)
+        SyncLookFromCamera();
+        if (rb != null) lastVelocity = rb.linearVelocity;
+    }
+
+    public void SyncLookFromCamera()
+    {
+        if (playerCamera == null) return;
+        Vector3 e = playerCamera.eulerAngles;
+        yaw = e.y;
+        pitch = Mathf.Clamp(e.x > 180f ? e.x - 360f : e.x, -maxPitch, maxPitch);
     }
 
     void Start()
     {
         LockCursor(true);
+    }
+
+    static string[] ParseTags(string source)
+    {
+        if (string.IsNullOrEmpty(source)) return new string[0];
+        string[] parts = source.Split(',');
+        List<string> result = new List<string>();
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string p = parts[i].Trim();
+            if (p.Length > 0) result.Add(p);
+        }
+        return result.ToArray();
     }
 
     void OnDisable()
@@ -328,7 +375,7 @@ public class FloppyPlayer : MonoBehaviour
             RaycastHit h = hitBuffer[i];
             if (h.collider == null) continue;
             if (h.collider.transform.IsChildOf(transform)) continue;           // خودمون
-            if (IsHeldBody(h.rigidbody)) continue;                              // وسیله‌ی تو دست زمین حساب نمیشه
+            if (IsHeldCollider(h.collider)) continue;                              // وسیله‌ی تو دست زمین حساب نمیشه
             if (Vector3.Angle(h.normal, Vector3.up) > maxSlopeAngle) continue;  // سراشیبی خیلی تند
             if (h.distance < best)
             {
@@ -404,7 +451,7 @@ public class FloppyPlayer : MonoBehaviour
     void UpdateAim()
     {
         lookHasHit = false;
-        lookGrabbable = null;
+        lookGrabRoot = null;
 
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
         int count = Physics.SphereCastNonAlloc(ray, aimRadius, hitBuffer, grabRange, aimMask, QueryTriggerInteraction.Ignore);
@@ -415,7 +462,7 @@ public class FloppyPlayer : MonoBehaviour
             RaycastHit h = hitBuffer[i];
             if (h.collider == null) continue;
             if (h.collider.transform.IsChildOf(transform)) continue;   // بدن خودمون
-            if (IsHeldBody(h.rigidbody)) continue;                      // چیزی که الان تو دسته جلوی دید رو نگیره
+            if (IsHeldCollider(h.collider)) continue;                      // چیزی که الان تو دسته جلوی دید رو نگیره
             if (h.distance < best)
             {
                 best = h.distance;
@@ -424,25 +471,71 @@ public class FloppyPlayer : MonoBehaviour
             }
         }
 
+        aimDebugText = "";
         if (lookHasHit)
         {
-            Rigidbody body = lookHit.rigidbody;
-            if (body != null && !body.isKinematic && HasGrabbableTag(lookHit.collider, body))
-                lookGrabbable = body;
+            Collider hc = lookHit.collider;
+            lookGrabRoot = FindGrabRoot(hc);
+            if (debugAim)
+            {
+                Rigidbody ar = hc.attachedRigidbody;
+                aimDebugText = "Looking at: " + hc.name + " | tag: " + hc.tag
+                    + " | rb: " + (ar == null ? "none" : (ar.isKinematic ? ar.name + " (kinematic)" : ar.name))
+                    + " | grabbable: " + (lookGrabRoot != null ? "YES" : "no")
+                    + " | dist: " + lookHit.distance.ToString("0.0");
+            }
+        }
+        else if (debugAim)
+        {
+            aimDebugText = "Looking at: nothing within range";
         }
     }
 
-    bool HasGrabbableTag(Collider c, Rigidbody body)
+    // با string مقایسه می‌کنیم نه CompareTag، تا تگِ تعریف‌نشده (مثلا MedicalItem) خطا ندهد
+    bool TagMatches(Transform t)
     {
-        string t = grabbableTags;
-        if (string.IsNullOrEmpty(t)) return false;
-        if (c.CompareTag(t) || body.CompareTag(t)) return true;
+        if (tagList == null) return false;
+        string tag = t.tag;
+        for (int i = 0; i < tagList.Length; i++)
+            if (tagList[i] == tag) return true;
         return false;
     }
 
-    bool IsHeldBody(Rigidbody b)
+    // ریشه‌ی وسیله‌ی قابل برداشتن: هر چیزی که MedicalTool داره (حتی بدون تگ و بدون Rigidbody)، یا تگ درست داره
+    Transform FindGrabRoot(Collider c)
     {
-        return b != null && (hands[0].held == b || hands[1].held == b);
+        MedicalTool tool = c.GetComponentInParent<MedicalTool>();
+        if (tool != null) return tool.canBePickedUp ? tool.transform : null;
+
+        for (Transform t = c.transform; t != null; t = t.parent)
+            if (TagMatches(t)) return t;
+        return null;
+    }
+
+    // اگه وسیله Rigidbody مستقل نداشته باشه (مثلا بچه‌ی آمبولانس بوده و hit.rigidbody خودِ آمبولانس بوده)، همین‌جا بهش یکی میدیم
+    Rigidbody GetOrCreateBody(Transform root)
+    {
+        Rigidbody body = root.GetComponentInParent<Rigidbody>();
+        if (body != null && !body.isKinematic) return body;
+        if (body != null && body.transform == root)
+        {
+            body.isKinematic = false;
+            return body;
+        }
+        body = root.gameObject.AddComponent<Rigidbody>();
+        body.mass = 1f;
+        return body;
+    }
+
+    bool IsHeldCollider(Collider c)
+    {
+        if (c == null) return false;
+        for (int i = 0; i < hands.Length; i++)
+        {
+            Rigidbody b = hands[i].held;
+            if (b != null && c.transform.IsChildOf(b.transform)) return true;
+        }
+        return false;
     }
 
     // ───────────────────────── گرفتن / ول کردن / استفاده ─────────────────────────
@@ -470,8 +563,8 @@ public class FloppyPlayer : MonoBehaviour
             }
 
             // تا وقتی دکمه نگه داشته شده و دست خالیه، به محض نشانه گرفتن یه وسیله برش می‌داره
-            if (h.reaching && h.armed && h.held == null && lookGrabbable != null)
-                Grab(h, lookGrabbable);
+            if (h.reaching && h.armed && h.held == null && lookGrabRoot != null)
+                Grab(h, GetOrCreateBody(lookGrabRoot));
         }
 
         if (canInput && Input.GetKeyDown(KeyCode.Q))
@@ -486,6 +579,10 @@ public class FloppyPlayer : MonoBehaviour
 
     void Grab(Hand h, Rigidbody body)
     {
+        if (body == null) return;
+        // اگه بچه‌ی آمبولانسِ لرزان بود جداش کن تا با لرزش والد با کنترل دست درگیر نشه
+        if (body.transform.parent != null) body.transform.SetParent(null, true);
+
         h.held = body;
         h.armed = false;
         h.heldLocalRot = Quaternion.Inverse(playerCamera.rotation) * body.rotation;
@@ -497,12 +594,14 @@ public class FloppyPlayer : MonoBehaviour
         info.interpolation = body.interpolation;
         info.detection = body.collisionDetectionMode;
         info.colliders = body.GetComponentsInChildren<Collider>();
+        info.renderers = body.GetComponentsInChildren<Renderer>();
         heldInfos[body] = info;
         pendingRestore.Remove(body);
 
         body.useGravity = false;
         body.interpolation = RigidbodyInterpolation.Interpolate;
         body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        ApplyTint(info.renderers, true);
         SetIgnore(info.colliders, true);   // وسیله‌ی تو دست با بدن خودمون برخورد نکنه (لرزش/هل دادن نداشته باشیم)
     }
 
@@ -524,6 +623,7 @@ public class FloppyPlayer : MonoBehaviour
         body.useGravity = info.useGravity;
         body.interpolation = info.interpolation;
         body.collisionDetectionMode = info.detection;
+        ApplyTint(info.renderers, false);
 
         if (doThrow)
             body.linearVelocity = rb.linearVelocity + playerCamera.forward * throwSpeed;
@@ -630,20 +730,60 @@ public class FloppyPlayer : MonoBehaviour
 
     void TryUse()
     {
-        // اول چیزی که تو دسته
-        for (int i = 0; i < hands.Length; i++)
+        // ۱) وسیله‌ی تو دست رو فقط وقتی به بیمار نگاه می‌کنی بهش میدی
+        if (IsLookingAtPatient())
         {
-            if (hands[i].held == null) continue;
-            MedicalTool heldTool = FindTool(hands[i].held.transform);
-            if (heldTool != null && heldTool.Use()) return;
+            for (int i = 0; i < hands.Length; i++)
+            {
+                if (hands[i].held == null) continue;
+                MedicalTool heldTool = FindTool(hands[i].held.transform);
+                if (heldTool == null) continue;
+                if (heldTool.Use())
+                {
+                    if (heldTool.consumeOnUse) ConsumeHeld(hands[i]);
+                    return;
+                }
+            }
         }
 
-        // بعد ابزاری که بهش نگاه می‌کنی
-        if (lookHasHit && lookHit.distance <= useRange)
+        // ۲) دستگاه ثابتی که برداشتنی نیست (canBePickedUp = false) مستقیم با E کار می‌کنه
+        if (lookHasHit && lookGrabRoot == null && lookHit.distance <= useRange)
         {
-            MedicalTool tool = FindTool(lookHit.collider.transform);
+            MedicalTool tool = lookHit.collider.GetComponentInParent<MedicalTool>();
             if (tool != null) tool.Use();
         }
+    }
+
+    bool IsLookingAtPatient()
+    {
+        if (patient == null)
+        {
+            if (Time.time < nextPatientSearch) return false;
+            nextPatientSearch = Time.time + 1f;
+            patient = FindFirstObjectByType<PatientNeedsManager>();
+            if (patient == null) return false;
+        }
+
+        Transform pt = patient.transform;
+        if (lookHasHit && lookHit.collider.transform.IsChildOf(pt)) return true;
+
+        Vector3 to = pt.TransformPoint(patientAimOffset) - playerCamera.position;
+        if (to.magnitude > giveRange) return false;
+        return Vector3.Angle(playerCamera.forward, to) <= giveAngle;
+    }
+
+    bool HoldingTool()
+    {
+        for (int i = 0; i < hands.Length; i++)
+            if (hands[i].held != null && FindTool(hands[i].held.transform) != null) return true;
+        return false;
+    }
+
+    void ConsumeHeld(Hand h)
+    {
+        Rigidbody body = h.held;
+        ReleaseHand(h, false);
+        if (body != null) Destroy(body.gameObject);
     }
 
     static MedicalTool FindTool(Transform t)
@@ -651,6 +791,32 @@ public class FloppyPlayer : MonoBehaviour
         MedicalTool tool = t.GetComponentInParent<MedicalTool>();
         if (tool == null) tool = t.GetComponentInChildren<MedicalTool>();
         return tool;
+    }
+
+    // رنگ وسیله‌ی تو دست کمی تغییر می‌کنه (با MaterialPropertyBlock؛ متریال اصلی دست نمی‌خوره)
+    void ApplyTint(Renderer[] renderers, bool on)
+    {
+        if (renderers == null) return;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer r = renderers[i];
+            if (r == null) continue;
+            Material[] mats = r.sharedMaterials;
+            for (int m = 0; m < mats.Length; m++)
+            {
+                if (!on) { r.SetPropertyBlock(null, m); continue; }
+
+                Material mat = mats[m];
+                if (mat == null) continue;
+                string prop = mat.HasProperty("_BaseColor") ? "_BaseColor" : (mat.HasProperty("_Color") ? "_Color" : null);
+                if (prop == null) continue;
+
+                MaterialPropertyBlock block = new MaterialPropertyBlock();
+                r.GetPropertyBlock(block, m);
+                block.SetColor(prop, Color.Lerp(mat.GetColor(prop), heldTint, heldTintAmount));
+                r.SetPropertyBlock(block, m);
+            }
+        }
     }
 
     // ───────────────────────── دست‌های ژله‌ای (ظاهری، بدون فیزیک) ─────────────────────────
@@ -791,9 +957,16 @@ public class FloppyPlayer : MonoBehaviour
     void OnGUI()
     {
         if (Event.current.type != EventType.Repaint) return;
-        bool canGrab = lookGrabbable != null;
+
+        bool canGrab = lookGrabRoot != null;
         float size = canGrab ? 12f : 6f;
         GUI.color = canGrab ? Color.green : new Color(1f, 1f, 1f, 0.75f);
         GUI.DrawTexture(new Rect(Screen.width * 0.5f - size * 0.5f, Screen.height * 0.5f - size * 0.5f, size, size), Texture2D.whiteTexture);
+
+        GUI.color = Color.white;
+        if (HoldingTool() && IsLookingAtPatient())
+            GUI.Label(new Rect(Screen.width * 0.5f - 120f, Screen.height * 0.5f + 30f, 240f, 30f), "[E] Give to patient");
+        if (debugAim)
+            GUI.Label(new Rect(10f, 10f, 1000f, 25f), aimDebugText);
     }
 }

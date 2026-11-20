@@ -55,6 +55,7 @@ public class AmbulanceShake : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = true;
+        isDrivingInMenu = false;   // آمبولانس تا زدن دکمه‌ی Start ثابته (GameStartIntro حرکتش میده)
         rb.interpolation = RigidbodyInterpolation.Interpolate;
     }
 
@@ -73,6 +74,12 @@ public class AmbulanceShake : MonoBehaviour
     {
         isDrivingInMenu = false;
         gameStarted = true;
+    }
+
+    // با زدن Start صدا زده میشه: آمبولانس شروع به حرکت می‌کنه
+    public void StartDriving()
+    {
+        isDrivingInMenu = true;
     }
 
     void FixedUpdate()
