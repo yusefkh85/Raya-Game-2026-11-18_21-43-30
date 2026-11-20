@@ -2,21 +2,54 @@ using UnityEngine;
 using System.Collections;
 using TMPro;
 
+// one patient request: the text message and the item that fixes it
+[System.Serializable]
+public class PatientNeed
+{
+    public string message;
+    public string correctItem;   // must match MedicalTool.itemName
+}
+
+// links an item name to the picture shown next to the message
+[System.Serializable]
+public class ItemIcon
+{
+    public string itemName;      // must match MedicalTool.itemName
+    public GameObject icon;      // the Image/sprite object for that item
+}
+
 [RequireComponent(typeof(PatientHealth), typeof(PatientStateManager))]
 public class PatientNeedsManager : MonoBehaviour
 {
-    [Header("اتصال به UI پیامک")]
-    public TextMeshProUGUI smsText; // متن پیامک روی صفحه
+    [Header("Message UI")]
+    public GameObject messagePanel;          // optional: parent object holding the text + icons (shown only during a need)
+    public TextMeshProUGUI smsText;          // the message text
+    public string messagePrefix = "";        // optional text before the message
 
-    [Header("تنظیمات زمان")]
-    public float timeToFulfillNeed = 10f; // چند ثانیه وقت داره تا نیازش رو برطرف کنی
-    public float wrongItemDamage = 15f;   // چقدر جون کم میشه اگه آیتم اشتباه بدی
-    public float correctItemHeal = 10f;   // چقدر جون زیاد میشه اگه آیتم درست بدی
+    [Header("Item pictures (one per item, shown next to the message)")]
+    public ItemIcon[] itemIcons =
+    {
+        new ItemIcon { itemName = "Hammer" },
+        new ItemIcon { itemName = "Defibrillator" },
+        new ItemIcon { itemName = "Injection" },
+        new ItemIcon { itemName = "Pill" },
+        new ItemIcon { itemName = "Bandage" },
+    };
 
-    // لیست نیازها (این‌ها رو خودت توی کد یا اینسپکتور تنظیم میکنی)
-    // نکته: هر نیاز با آیتم هم‌ایندکسش جواب داده میشه؛ طول دو آرایه باید برابر باشه
-    public string[] possibleNeeds = { "I have a fever,", "I am in pain,", "I am bleeding,", "I have gone into cardiac arrest." };
-    public string[] correctItems = { "Firefighting", "Pill", "Adhesive bandage", "Defibrillator" };
+    [Header("Timing and health")]
+    public float timeToFulfillNeed = 10f; // seconds to give the right item
+    public float wrongItemDamage = 15f;   // HP lost for a wrong item or running out of time
+    public float correctItemHeal = 10f;   // HP gained for the right item
+
+    [Header("Needs (message -> correct item)")]
+    public PatientNeed[] needs =
+    {
+        new PatientNeed { message = "I have a fever,",                  correctItem = "Injection" },
+        new PatientNeed { message = "I am in pain,",                    correctItem = "Pill" },
+        new PatientNeed { message = "I am bleeding,",                   correctItem = "Bandage" },
+        new PatientNeed { message = "I have gone into cardiac arrest.", correctItem = "Defibrillator" },
+        new PatientNeed { message = "Please check my reflexes,",        correctItem = "Hammer" },
+    };
 
     private int currentNeedIndex = -1;
     private float timer;
@@ -30,10 +63,10 @@ public class PatientNeedsManager : MonoBehaviour
         patientHealth = GetComponent<PatientHealth>();
         stateManager = GetComponent<PatientStateManager>();
 
-        if (smsText != null) smsText.gameObject.SetActive(false);   // قبلا از اول روشن بود
+        HideMessage();
 
-        if (possibleNeeds.Length == 0 || correctItems.Length < possibleNeeds.Length)
-            Debug.LogWarning("PatientNeedsManager: طول possibleNeeds و correctItems برابر نیست؛ فقط نیازهایی که آیتم دارن استفاده میشن.", this);
+        if (needs == null || needs.Length == 0)
+            Debug.LogWarning("PatientNeedsManager: the needs list is empty.", this);
 
         StartCoroutine(NeedLoop());
     }
@@ -42,9 +75,9 @@ public class PatientNeedsManager : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(Random.Range(5f, 10f)); // فاصله بین نیازها
+            yield return new WaitForSeconds(Random.Range(5f, 10f));
 
-            // تا نیاز قبلی تموم نشده نیاز جدید نمیاد (قبلا نیاز جدید بی‌صدا جای قبلی رو می‌گرفت)
+            // wait until the previous need is finished
             while (hasActiveNeed) yield return null;
 
             if (stateManager.CurrentState == PatientState.Dead) yield break;
@@ -54,19 +87,15 @@ public class PatientNeedsManager : MonoBehaviour
 
     void GenerateNewNeed()
     {
-        int count = Mathf.Min(possibleNeeds.Length, correctItems.Length);
-        if (count == 0) return;
+        if (needs == null || needs.Length == 0) return;
 
-        currentNeedIndex = Random.Range(0, count);
-        if (smsText != null)
-        {
-            smsText.text = "📱 پیام از بیمار: " + possibleNeeds[currentNeedIndex];
-            smsText.gameObject.SetActive(true);
-        }
+        currentNeedIndex = Random.Range(0, needs.Length);
+        PatientNeed need = needs[currentNeedIndex];
+        ShowMessage(need.message, need.correctItem);
 
         hasActiveNeed = true;
         timer = timeToFulfillNeed;
-        stateManager.SetState(PatientState.Angry); // وقتی نیاز داره عصبانی میشه
+        stateManager.SetState(PatientState.Angry);   // the patient gets angry while waiting
     }
 
     void Update()
@@ -76,26 +105,24 @@ public class PatientNeedsManager : MonoBehaviour
         timer -= Time.deltaTime;
         if (timer <= 0f)
         {
-            // زمان تموم شد و بازیکن کاری نکرد
+            // time ran out
             patientHealth.ChangeHealth(-wrongItemDamage);
             EndNeed();
         }
     }
 
-    // این متد توسط MedicalTool.Use() صدا زده میشه
-    public void UseItem(string itemName)
+    // called by MedicalTool.Use(); returns false if the patient needs nothing right now
+    public bool UseItem(string itemName)
     {
-        if (!hasActiveNeed) return;
+        if (!hasActiveNeed) return false;
 
-        if (Normalize(itemName) == Normalize(correctItems[currentNeedIndex]))
-        {
-            patientHealth.ChangeHealth(correctItemHeal);   // آیتم درست! جونش زیاد میشه
-        }
+        if (Normalize(itemName) == Normalize(needs[currentNeedIndex].correctItem))
+            patientHealth.ChangeHealth(correctItemHeal);    // right item
         else
-        {
-            patientHealth.ChangeHealth(-wrongItemDamage);  // آیتم اشتباه!
-        }
+            patientHealth.ChangeHealth(-wrongItemDamage);   // wrong item
+
         EndNeed();
+        return true;
     }
 
     static string Normalize(string s)
@@ -106,12 +133,44 @@ public class PatientNeedsManager : MonoBehaviour
     void EndNeed()
     {
         hasActiveNeed = false;
-        if (smsText != null) smsText.gameObject.SetActive(false);
+        HideMessage();
 
         if (stateManager.CurrentState != PatientState.Dead)
         {
             if (patientHealth.health < 40) stateManager.SetState(PatientState.Sick);
             else stateManager.SetState(PatientState.Happy);
+        }
+    }
+
+    // ───────── message + item picture ─────────
+    void ShowMessage(string text, string itemName)
+    {
+        if (messagePanel != null) messagePanel.SetActive(true);
+        if (smsText != null)
+        {
+            smsText.text = messagePrefix + text;
+            smsText.gameObject.SetActive(true);
+        }
+        ShowIcon(itemName);
+    }
+
+    void HideMessage()
+    {
+        if (smsText != null) smsText.gameObject.SetActive(false);
+        ShowIcon(null);
+        if (messagePanel != null) messagePanel.SetActive(false);
+    }
+
+    // shows only the picture of the needed item (null = hide all)
+    void ShowIcon(string itemName)
+    {
+        if (itemIcons == null) return;
+        string wanted = Normalize(itemName);
+        for (int i = 0; i < itemIcons.Length; i++)
+        {
+            ItemIcon entry = itemIcons[i];
+            if (entry == null || entry.icon == null) continue;
+            entry.icon.SetActive(wanted.Length > 0 && Normalize(entry.itemName) == wanted);
         }
     }
 }

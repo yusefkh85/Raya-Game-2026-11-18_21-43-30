@@ -26,13 +26,13 @@ public class MedicalTool : MonoBehaviour
             patientNeeds = FindFirstObjectByType<PatientNeedsManager>();
         if (patientNeeds == null)
         {
-            Debug.LogWarning("MedicalTool: PatientNeedsManager تو صحنه پیدا نشد.", this);
+            Debug.LogWarning("MedicalTool: no PatientNeedsManager found in the scene.", this);
             return false;
         }
 
         nextUseTime = Time.time + useCooldown;
-        patientNeeds.UseItem(itemName);
+        bool accepted = patientNeeds.UseItem(itemName);   // false = بیمار الان نیازی نداره
         // اینجا میتونی صدا یا انیمیشن استفاده از دستگاه رو هم اجرا کنی
-        return true;
+        return accepted;
     }
 }

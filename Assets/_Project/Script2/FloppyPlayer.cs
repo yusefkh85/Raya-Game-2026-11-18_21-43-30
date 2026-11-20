@@ -22,14 +22,14 @@ using UnityEngine;
 public class FloppyPlayer : MonoBehaviour
 {
     // ───────────────────────── تنظیمات ─────────────────────────
-    [Header("دوربین")]
+    [Header("Camera")]
     public Transform playerCamera;
     public float mouseSensitivity = 2.5f;
     public float maxPitch = 80f;
     public bool lockCursorOnClick = true;   // کلیک تو بازی دوباره موس رو قفل می‌کنه (بعد از Escape)
     public bool hideBodyMesh = true;
 
-    [Header("حرکت")]
+    [Header("Movement")]
     public float moveSpeed = 5.5f;
     public float groundAcceleration = 60f;  // سرعت رسیدن به سرعت هدف روی زمین
     public float airAcceleration = 25f;     // کنترل تو هوا
@@ -38,7 +38,7 @@ public class FloppyPlayer : MonoBehaviour
     public float groundCheckDistance = 0.1f;
     public LayerMask groundMask = Physics.DefaultRaycastLayers;
 
-    [Header("پرش")]
+    [Header("Jump")]
     public float jumpHeight = 1.3f;              // ارتفاع پرش به متر
     public float fallGravityMultiplier = 1.8f;   // جاذبه‌ی بیشتر موقع سقوط (فرود سنگین)
     public float lowJumpMultiplier = 2.2f;       // اگه Space رو زود ول کنی پرش کوتاه‌تر میشه
@@ -46,7 +46,7 @@ public class FloppyPlayer : MonoBehaviour
     public float jumpBufferTime = 0.12f;         // Space رو کمی زودتر از فرود بزنی هم قبول میشه
     public float maxFallSpeed = 40f;
 
-    [Header("دست‌های ژله‌ای")]
+    [Header("Floppy hands")]
     public float handStiffness = 140f;    // سفتی فنر
     public float handDamping = 9f;        // میرایی (کمتر = ژله‌ای‌تر)
     public float reachDistance = 1.0f;    // وقتی چیزی جلوت نیست دست تا کجا دراز میشه
@@ -66,7 +66,7 @@ public class FloppyPlayer : MonoBehaviour
     public Color gloveColor = new Color(0.2f, 0.65f, 0.95f);
     public Material handMaterial;         // اختیاری: متریال دلخواه برای همه‌ی اجزای دست
 
-    [Header("گرفتن، پرتاب و استفاده")]
+    [Header("Grab, throw and use")]
     public float grabRange = 2.6f;
     public float aimRadius = 0.1f;       // ضخامت پرتوی نشانه‌گیری (نشانه‌گیری راحت‌تر)
     public LayerMask aimMask = Physics.DefaultRaycastLayers;
@@ -78,16 +78,17 @@ public class FloppyPlayer : MonoBehaviour
     public float useRange = 2.6f;
     public string grabbableTags = "Item,MedicalItem";   // با کاما جدا کن. هر چیزی که MedicalTool داشته باشه بدون تگ هم قابل برداشتنه
 
-    [Header("رنگ وسیله‌ی تو دست")]
+    [Header("Held item tint")]
     public Color heldTint = new Color(1f, 0.85f, 0.25f);
     [Range(0f, 1f)] public float heldTintAmount = 0.35f;
 
-    [Header("دادن وسیله به بیمار")]
+    [Header("Giving items to the patient")]
     public float giveRange = 3.5f;       // حداکثر فاصله‌ی دوربین تا بیمار
     public float giveAngle = 40f;        // باید تقریبا به بیمار نگاه کنی
     public Vector3 patientAimOffset = new Vector3(0f, 1f, 0f);   // نقطه‌ی هدف روی بیمار (نسبت به pivot اون)
+    public string patientTag = "Patient";   // تگ آبجکت بیمار
 
-    [Header("اشکال‌یابی")]
+    [Header("Debug")]
     public bool debugAim = true;         // بالای صفحه می‌نویسه به چی نگاه می‌کنی و چرا برداشته نمیشه
 
     // ───────────────────────── وضعیت داخلی ─────────────────────────
@@ -138,10 +139,13 @@ public class FloppyPlayer : MonoBehaviour
     readonly Dictionary<Rigidbody, Collider[]> pendingRestore = new Dictionary<Rigidbody, Collider[]>();
     readonly List<Rigidbody> tmpBodies = new List<Rigidbody>();
 
-    PatientNeedsManager patient;
+    Transform patientTf;
     float nextPatientSearch;
     string[] tagList;
     string aimDebugText = "";
+    string giveMessage = "";
+    float giveMessageUntil;
+    GUIStyle labelStyle;
 
     public bool IsGrounded { get { return isGrounded; } }
 
@@ -179,13 +183,13 @@ public class FloppyPlayer : MonoBehaviour
         }
         if (playerCamera == null)
         {
-            Debug.LogError("FloppyPlayer: دوربین پیدا نشد. یه Camera بذار زیر Player و تو فیلد playerCamera بکش.", this);
+            Debug.LogError("FloppyPlayer: no camera found. Put a Camera under the Player and assign it to the playerCamera field.", this);
             enabled = false;
             return;
         }
         if (!playerCamera.IsChildOf(transform))
         {
-            Debug.LogWarning("FloppyPlayer: دوربین بچه‌ی Player نبود؛ خودکار بچه‌ش شد.", this);
+            Debug.LogWarning("FloppyPlayer: the camera was not a child of the Player; it was parented automatically.", this);
             playerCamera.SetParent(transform, true);
         }
 
@@ -564,7 +568,11 @@ public class FloppyPlayer : MonoBehaviour
 
             // تا وقتی دکمه نگه داشته شده و دست خالیه، به محض نشانه گرفتن یه وسیله برش می‌داره
             if (h.reaching && h.armed && h.held == null && lookGrabRoot != null)
-                Grab(h, GetOrCreateBody(lookGrabRoot));
+            {
+                // همزمان فقط یک وسیله: اگه یه دست چیزی داره، دست دیگه برنمی‌داره
+                if (IsHoldingAnything()) h.armed = false;
+                else Grab(h, GetOrCreateBody(lookGrabRoot));
+            }
         }
 
         if (canInput && Input.GetKeyDown(KeyCode.Q))
@@ -738,12 +746,16 @@ public class FloppyPlayer : MonoBehaviour
                 if (hands[i].held == null) continue;
                 MedicalTool heldTool = FindTool(hands[i].held.transform);
                 if (heldTool == null) continue;
+                string toolName = string.IsNullOrEmpty(heldTool.itemName) ? heldTool.name : heldTool.itemName;
                 if (heldTool.Use())
                 {
+                    ShowGiveMessage("Gave " + toolName + " to the patient");
+                    hands[i].vel += new Vector3(0f, 0.2f, 3f);   // دست به سمت بیمار پرت میشه
                     if (heldTool.consumeOnUse) ConsumeHeld(hands[i]);
                     return;
                 }
             }
+            if (HoldingTool()) ShowGiveMessage("The patient doesn't need anything right now");
         }
 
         // ۲) دستگاه ثابتی که برداشتنی نیست (canBePickedUp = false) مستقیم با E کار می‌کنه
@@ -754,20 +766,53 @@ public class FloppyPlayer : MonoBehaviour
         }
     }
 
+    void ShowGiveMessage(string text)
+    {
+        giveMessage = text;
+        giveMessageUntil = Time.time + 2f;
+    }
+
+    bool IsHoldingAnything()
+    {
+        for (int i = 0; i < hands.Length; i++)
+            if (hands[i].held != null) return true;
+        return false;
+    }
+
     bool IsLookingAtPatient()
     {
-        if (patient == null)
+        if (patientTf == null)
         {
             if (Time.time < nextPatientSearch) return false;
             nextPatientSearch = Time.time + 1f;
-            patient = FindFirstObjectByType<PatientNeedsManager>();
-            if (patient == null) return false;
+
+            GameObject go = null;
+            if (!string.IsNullOrEmpty(patientTag))
+            {
+                try { go = GameObject.FindWithTag(patientTag); }
+                catch (UnityException) { }   // تگ تعریف نشده
+            }
+            if (go != null) patientTf = go.transform;
+            else
+            {
+                PatientNeedsManager pn = FindFirstObjectByType<PatientNeedsManager>();
+                if (pn != null) patientTf = pn.transform;
+            }
+            if (patientTf == null) return false;
         }
 
-        Transform pt = patient.transform;
-        if (lookHasHit && lookHit.collider.transform.IsChildOf(pt)) return true;
+        // مستقیم به خود بیمار (یا هر بخشی از بدنش) نگاه می‌کنی؟
+        if (lookHasHit)
+        {
+            for (Transform t = lookHit.collider.transform; t != null; t = t.parent)
+            {
+                if (t == patientTf) return true;
+                if (!string.IsNullOrEmpty(patientTag) && t.tag == patientTag) return true;
+            }
+        }
 
-        Vector3 to = pt.TransformPoint(patientAimOffset) - playerCamera.position;
+        // یا نزدیکی و تقریبا جلوی دوربینه
+        Vector3 to = patientTf.TransformPoint(patientAimOffset) - playerCamera.position;
         if (to.magnitude > giveRange) return false;
         return Vector3.Angle(playerCamera.forward, to) <= giveAngle;
     }
@@ -958,14 +1003,38 @@ public class FloppyPlayer : MonoBehaviour
     {
         if (Event.current.type != EventType.Repaint) return;
 
-        bool canGrab = lookGrabRoot != null;
-        float size = canGrab ? 12f : 6f;
-        GUI.color = canGrab ? Color.green : new Color(1f, 1f, 1f, 0.75f);
-        GUI.DrawTexture(new Rect(Screen.width * 0.5f - size * 0.5f, Screen.height * 0.5f - size * 0.5f, size, size), Texture2D.whiteTexture);
+        if (labelStyle == null)
+        {
+            labelStyle = new GUIStyle(GUI.skin.label);
+            labelStyle.fontSize = 22;
+            labelStyle.fontStyle = FontStyle.Bold;
+            labelStyle.alignment = TextAnchor.MiddleCenter;
+        }
+
+        float cx = Screen.width * 0.5f;
+        float cy = Screen.height * 0.5f;
+        bool canGive = HoldingTool() && IsLookingAtPatient();
+        bool canGrab = lookGrabRoot != null && !IsHoldingAnything();
+
+        if (canGive)
+        {
+            // علامت + : الان می‌تونی وسیله رو به بیمار بدی
+            GUI.color = new Color(0.3f, 1f, 0.4f);
+            GUI.DrawTexture(new Rect(cx - 14f, cy - 2f, 28f, 4f), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(cx - 2f, cy - 14f, 4f, 28f), Texture2D.whiteTexture);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(cx - 200f, cy + 26f, 400f, 32f), "[E] Give to patient", labelStyle);
+        }
+        else
+        {
+            float size = canGrab ? 12f : 6f;
+            GUI.color = canGrab ? Color.green : new Color(1f, 1f, 1f, 0.75f);
+            GUI.DrawTexture(new Rect(cx - size * 0.5f, cy - size * 0.5f, size, size), Texture2D.whiteTexture);
+        }
 
         GUI.color = Color.white;
-        if (HoldingTool() && IsLookingAtPatient())
-            GUI.Label(new Rect(Screen.width * 0.5f - 120f, Screen.height * 0.5f + 30f, 240f, 30f), "[E] Give to patient");
+        if (Time.time < giveMessageUntil)
+            GUI.Label(new Rect(cx - 300f, cy + 66f, 600f, 36f), giveMessage, labelStyle);
         if (debugAim)
             GUI.Label(new Rect(10f, 10f, 1000f, 25f), aimDebugText);
     }

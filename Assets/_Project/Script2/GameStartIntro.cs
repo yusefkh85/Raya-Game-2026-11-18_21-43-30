@@ -1,19 +1,20 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 
 public class GameStartIntro : MonoBehaviour
 {
-    [Header("دوربین‌ها و آمبولانس")]
+    [Header("Cameras and ambulance")]
     public Camera menuCamera;          // دوربین بیرونی که آمبولانس رو نشون میده
     public Camera playerCamera;
     public AmbulanceShake ambulanceShake;
 
-    [Header("کنترل کاراکتر و منو")]
+    [Header("Character and menu")]
     public GameObject menuUI;
     public FloppyPlayer FloppyPlayer;
 
-    [Header("تنظیمات پرواز نرم دوربین")]
+    [Header("Smooth camera flight")]
     public bool smoothTransition = true;
     public float transitionDuration = 2.0f;
 
@@ -54,7 +55,7 @@ public class GameStartIntro : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
-        Debug.Log("[GameStartIntro v3] آماده. menuUI=" + (menuUI != null ? menuUI.name : "NULL")
+        Debug.Log("[GameStartIntro v3] Ready. menuUI=" + (menuUI != null ? menuUI.name : "NULL")
             + " | menuCamera=" + (menuCamera != null ? menuCamera.name : "NULL")
             + " | playerCamera=" + (playerCamera != null ? playerCamera.name : "NULL")
             + " | ambulanceShake=" + (ambulanceShake != null ? ambulanceShake.name : "NULL")
@@ -66,7 +67,7 @@ public class GameStartIntro : MonoBehaviour
     {
         if (started) return;
         started = true;
-        Debug.Log("[GameStartIntro v3] دکمه‌ی Start زده شد", this);
+        Debug.Log("[GameStartIntro v3] Start button clicked", this);
 
         HideMenu();
         StartCoroutine(StartSequence());
@@ -76,7 +77,7 @@ public class GameStartIntro : MonoBehaviour
     {
         // ۱) آمبولانس راه میفته (کاراکتر و وسایل هم باهاش میرن)
         BoardPassengers();
-        Debug.Log("[GameStartIntro v3] مسافرها: " + passengers.Count + " | آمبولانس راه افتاد", this);
+        Debug.Log("[GameStartIntro v3] Passengers: " + passengers.Count + " | ambulance started driving", this);
         if (ambulanceShake != null) ambulanceShake.StartDriving();
 
         // ۲) دوربین بیرونی به سمت دوربین بازیکن پرواز می‌کنه
@@ -85,7 +86,7 @@ public class GameStartIntro : MonoBehaviour
         else
             yield return new WaitForSeconds(Mathf.Max(0.1f, transitionDuration));
 
-        Debug.Log("[GameStartIntro v3] پرواز تموم شد، سوییچ دوربین", this);
+        Debug.Log("[GameStartIntro v3] Flight finished, switching camera", this);
         // ۳) آمبولانس وایمیسته (تکان‌ها ادامه دارن و بیشتر میشن) و دوربین عوض میشه
         if (ambulanceShake != null) ambulanceShake.StopDrivingAndRampUpShake();
         ActivatePlayer();
@@ -102,7 +103,7 @@ public class GameStartIntro : MonoBehaviour
         bool holdsPlayerCam = playerCamera != null && playerCamera.transform.IsChildOf(menuUI.transform);
         if (holdsMenuCam || holdsPlayerCam)
         {
-            Debug.LogError("GameStartIntro: فیلد Menu UI باید Canvas (یا پنل منو) باشه، نه دوربین! منو مخفی نشد.", this);
+            Debug.LogError("GameStartIntro: the Menu UI field must be the Canvas (or the menu panel), not a camera! The menu was not hidden.", this);
             return;
         }
 
@@ -220,7 +221,11 @@ public class GameStartIntro : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        Debug.Log("[GameStartIntro v3] ActivatePlayer: playerCamera فعاله؟ " + (playerCamera != null && playerCamera.gameObject.activeInHierarchy)
-            + " | FloppyPlayer فعاله؟ " + (FloppyPlayer != null && FloppyPlayer.enabled), this);
+        Debug.Log("[GameStartIntro v3] ActivatePlayer: playerCamera active? " + (playerCamera != null && playerCamera.gameObject.activeInHierarchy)
+            + " | FloppyPlayer enabled? " + (FloppyPlayer != null && FloppyPlayer.enabled), this);
+    }
+    public void OnApplicationQuit()
+    {
+        Application.Quit();
     }
 }

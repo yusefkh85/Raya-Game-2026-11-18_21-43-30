@@ -5,40 +5,40 @@ public class AmbulanceShake : MonoBehaviour
 {
     public static float Intensity { get; private set; }
 
-    [Header("حرکت در صفحه منو (Start)")]
+    [Header("Driving on the menu screen (Start)")]
     public bool isDrivingInMenu = true;
     public float driveSpeed = 4.5f;
     public Vector3 localForwardAxis = Vector3.forward;
 
-    [Header("افزایش تدریجی شدت تکان‌ها در طول بازی")]
+    [Header("Gradually increase shake over time")]
     public bool increaseShakeOverTime = true;
-    [Tooltip("هر ثانیه چقدر به شدت تکان‌ها اضافه شود")]
+    [Tooltip("How much shake strength is added per second")]
     public float intensityGrowthRate = 0.03f;
-    [Tooltip("حداکثر ضریب شدت تکان‌ها تا آمبولانس زیادی پرتاب نشود")]
+    [Tooltip("Maximum shake multiplier so the ambulance is not thrown around too much")]
     public float maxGlobalStrength = 3.0f;
 
-    [Header("دست‌انداز")]
+    [Header("Speed bump")]
     public float bumpInterval = 2.5f;
     public float bumpStrength = 0.06f;
     public float bumpDecay = 2.5f;
 
-    [Header("پیچ تند")]
+    [Header("Sharp turn")]
     public float turnInterval = 6f;
     public float turnDuration = 2f;
     public float turnLateral = 0.25f;
     public float turnRoll = 6f;
 
-    [Header("ترمز ناگهانی")]
+    [Header("Sudden brake")]
     public float brakeInterval = 12f;
     public float brakeDuration = 0.8f;
     public float brakeForwardPush = 0.2f;
     public float brakePitch = 4f;
 
-    [Header("نویز ملایم همیشگی")]
+    [Header("Constant soft noise")]
     public float idleNoise = 0.02f;
     public float idleRotation = 1.2f;
 
-    [Header("کنترل شدت فعلی")]
+    [Header("Current strength")]
     [Range(0f, 3f)] public float globalStrength = 1f;
 
     Rigidbody rb;

@@ -5,7 +5,7 @@ public enum PatientState { Happy, Angry, Sick, Dead }
 
 public class PatientStateManager : MonoBehaviour
 {
-    [Header("مدل‌های بیمار — خودت پر کن")]
+    [Header("Patient models (assign yourself)")]
     public GameObject happyModel;
     public GameObject angryModel;
     public GameObject sickModel;
